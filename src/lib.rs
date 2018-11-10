@@ -28,12 +28,15 @@
 #![deny(unused_mut)]
 #![warn(missing_docs)]
 
+#![feature(futures_api)] 
+
+extern crate futures;
 extern crate hyper;
 
 extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-pub extern crate serde_json;
+extern crate serde_json;
+#[macro_use] extern crate serde_derive;
+
 
 pub mod client;
 pub mod error;
@@ -66,6 +69,15 @@ pub struct Response {
     /// jsonrpc field, MUST be "2.0"
     pub jsonrpc: Option<String>,
 }
+
+//impl Future for Response {
+//    type Item = Option<serde_json::Value>;
+//    type Error = Error;
+//
+//    fn poll(&mut self) -> std::task::Poll<Self::Item, Self::Error> {
+//        //self.inner.poll()
+//    }
+//}
 
 impl Response {
     /// Extract the result from a response

@@ -18,111 +18,101 @@
 //! and parsing responses
 //!
 
-use std::io;
-use std::io::Read;
 use std::sync::{Arc, Mutex};
-
-use hyper;
-use hyper::client::Client as HyperClient;
-use hyper::header::{Authorization, Basic, Headers};
-use serde;
+use hyper::client::{Client as HyperClient, HttpConnector};
+use hyper::{self, Body, Method};
+use futures::{future, Future, Stream};
 use serde_json;
-
+use serde;
 use super::{Request, Response};
 use error::Error;
 
 /// A handle to a remote JSONRPC server
 pub struct Client {
     url: String,
-    user: Option<String>,
-    pass: Option<String>,
-    client: HyperClient,
+//    user: Option<String>,
+//    pass: Option<String>,
+    client: HyperClient<HttpConnector, Body>,
     nonce: Arc<Mutex<u64>>,
 }
 
+
 impl Client {
     /// Creates a new client
-    pub fn new(url: String, user: Option<String>, pass: Option<String>) -> Client {
+    pub fn new(url: String) -> Client {
         // Check that if we have a password, we have a username; other way around is ok
-        debug_assert!(pass.is_none() || user.is_some());
+        //debug_assert!(pass.is_none() || user.is_some());
 
         Client {
             url: url,
-            user: user,
-            pass: pass,
             client: HyperClient::new(),
             nonce: Arc::new(Mutex::new(0)),
         }
     }
 
     /// Make a request and deserialize the response
-    pub fn do_rpc<T: for<'a> serde::de::Deserialize<'a>>(
+    pub fn do_rpc<T>(
         &self,
         rpc_name: &str,
         args: &[serde_json::value::Value],
-    ) -> Result<T, Error> {
+    ) -> Box<Future<Item=T, Error=Error> + Send> 
+    where T: Send , T: serde::de::DeserializeOwned, T : 'static { 
         let request = self.build_request(rpc_name, args);
-        let response = self.send_request(&request)?;
-
-        Ok(response.into_result()?)
+        let response = self.send_request(&request);
+        Box::new(response.and_then(|res|{
+            Ok(res.into_result::<T>()?)
+        }))
     }
 
     /// Sends a request to a client
-    pub fn send_request(&self, request: &Request) -> Result<Response, Error> {
+    pub fn send_request(&self, request: &Request) -> Box<Future<Item=Response, Error=Error> + Send> {
         // Build request
-        let request_raw = serde_json::to_vec(request)?;
+        let request_raw = serde_json::to_vec(request);
+        if request_raw.is_err(){
+            return Box::new(future::err(Error::Json(request_raw.err().unwrap())));
+        }
+        let request_raw = request_raw.unwrap();
 
         // Setup connection
-        let mut headers = Headers::new();
-        if let Some(ref user) = self.user {
-            headers.set(Authorization(Basic {
-                username: user.clone(),
-                password: self.pass.clone(),
-            }));
-        }
+//        let mut headers = HeaderMap::new();
+//        if let Some(ref user) = self.user {
+//            headers.insert(AUTHORIZATION, user.clone().parse().unwrap());
+//        }
 
         // Send request
-        let retry_headers = headers.clone();
-        let hyper_request = self.client.post(&self.url).headers(headers).body(&request_raw[..]);
-        let mut stream = match hyper_request.send() {
-            Ok(s) => s,
-            // Hyper maintains a pool of TCP connections to its various clients,
-            // and when one drops it cannot tell until it tries sending. In this
-            // case the appropriate thing is to re-send, which will cause hyper
-            // to open a new connection. Jonathan Reem explained this to me on
-            // IRC, citing vague technical reasons that the library itself cannot
-            // do the retry transparently.
-            Err(hyper::error::Error::Io(e)) => {
-                if e.kind() == io::ErrorKind::BrokenPipe
-                    || e.kind() == io::ErrorKind::ConnectionAborted
-                {
-                    try!(self
-                        .client
-                        .post(&self.url)
-                        .headers(retry_headers)
-                        .body(&request_raw[..])
-                        .send()
-                        .map_err(Error::Hyper))
-                } else {
-                    return Err(Error::Hyper(hyper::error::Error::Io(e)));
+        let hyper_request = hyper::Request::builder()
+            .method(Method::POST)
+            .uri(self.url.clone())
+            .body(Body::from(request_raw))
+            .unwrap();
+            //*hyper_request.headers_mut() = headers;
+        
+        let msg_id = request.id.clone();
+        let resp_fut = self.client.request(hyper_request);
+        
+        Box::new(resp_fut.and_then(|res| {
+            res.into_body().concat2()
+        }).then(move |body|{
+            match body{
+                Ok(b) =>{
+                    match serde_json::from_slice::<Response>(&b){
+                        Ok(response) => {
+                            if response.jsonrpc != None && response.jsonrpc != Some(From::from("2.0")) {
+                                return Err(Error::VersionMismatch);
+                            }
+                            if response.id != msg_id {
+                                return Err(Error::NonceMismatch);
+                            }
+                            return Ok(response)
+                        },
+                        Err(e) => {
+                            return Err(Error::Json(e))
+                        },
+                    }
                 }
+                Err(e) => return Err(Error::Hyper(e))
             }
-            Err(e) => {
-                return Err(Error::Hyper(e));
-            }
-        };
-
-        // nb we ignore stream.status since we expect the body
-        // to contain information about any error
-        let response: Response = serde_json::from_reader(&mut stream)?;
-        stream.bytes().count(); // Drain the stream so it can be reused
-        if response.jsonrpc != None && response.jsonrpc != Some(From::from("2.0")) {
-            return Err(Error::VersionMismatch);
-        }
-        if response.id != request.id {
-            return Err(Error::NonceMismatch);
-        }
-        Ok(response)
+        }))
     }
 
     /// Builds a request

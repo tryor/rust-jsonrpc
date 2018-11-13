@@ -32,6 +32,7 @@
 
 extern crate futures;
 extern crate hyper;
+extern crate tokio;
 
 extern crate serde;
 extern crate serde_json;
@@ -57,6 +58,19 @@ pub struct Request<'a, 'b> {
     pub jsonrpc: Option<&'a str>,
 }
 
+fn test(mut x: String) { x.push('o'); println!("{}", x); }
+use futures::{future, Future};
+impl<'a, 'b> Request<'a, 'b>  {
+    fn new(params: &'static mut  serde_json::Value) -> Box<Future<Item=&'static mut serde_json::Value, Error=String> + Send> 
+    { 
+       //return params //Box::new(params);
+       Box::new(future::ok(params))
+    }
+    
+    fn test(mut x: String) { x.push('o'); println!("{}", x); }
+}
+
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 /// A JSONRPC response object
 pub struct Response {
@@ -69,15 +83,6 @@ pub struct Response {
     /// jsonrpc field, MUST be "2.0"
     pub jsonrpc: Option<String>,
 }
-
-//impl Future for Response {
-//    type Item = Option<serde_json::Value>;
-//    type Error = Error;
-//
-//    fn poll(&mut self) -> std::task::Poll<Self::Item, Self::Error> {
-//        //self.inner.poll()
-//    }
-//}
 
 impl Response {
     /// Extract the result from a response

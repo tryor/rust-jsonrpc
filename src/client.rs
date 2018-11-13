@@ -26,6 +26,9 @@ use serde_json;
 use serde;
 use super::{Request, Response};
 use error::Error;
+use std::time::{Duration, Instant};
+use std::ops::Add;
+use tokio::timer::Timeout;
 
 /// A handle to a remote JSONRPC server
 pub struct Client {
@@ -34,6 +37,7 @@ pub struct Client {
 //    pass: Option<String>,
     client: HyperClient<HttpConnector, Body>,
     nonce: Arc<Mutex<u64>>,
+    timeout: Option<Duration>,
 }
 
 
@@ -47,15 +51,18 @@ impl Client {
             url: url,
             client: HyperClient::new(),
             nonce: Arc::new(Mutex::new(0)),
+            timeout: None,
         }
+    }
+    
+    pub fn set_timeout(&mut self, timeout : Duration) -> &Self{
+        self.timeout = Some(timeout);
+        self
     }
 
     /// Make a request and deserialize the response
-    pub fn do_rpc<T>(
-        &self,
-        rpc_name: &str,
-        args: &[serde_json::value::Value],
-    ) -> Box<Future<Item=T, Error=Error> + Send> 
+    pub fn do_rpc<T>(&self, rpc_name: &str, args: &[serde_json::value::Value]) 
+    -> Box<Future<Item=T, Error=Error> + Send> 
     where T: Send , T: serde::de::DeserializeOwned, T : 'static { 
         let request = self.build_request(rpc_name, args);
         let response = self.send_request(&request);
@@ -64,8 +71,25 @@ impl Client {
         }))
     }
 
+
     /// Sends a request to a client
     pub fn send_request(&self, request: &Request) -> Box<Future<Item=Response, Error=Error> + Send> {
+        let resp_fut = self.send_request_(request);
+        if self.timeout.is_some(){
+            let deadline = Instant::now().add(self.timeout.unwrap());
+            Box::new(Timeout::new_at(resp_fut, deadline).map_err(|e|{
+                match e.into_inner(){
+                    Some(r) =>  r,
+                    None => Error::Timeout
+                }
+            }))
+        }else{
+            resp_fut
+        }
+    }
+
+
+    fn send_request_(&self, request: &Request) -> Box<Future<Item=Response, Error=Error> + Send> {
         // Build request
         let request_raw = serde_json::to_vec(request);
         if request_raw.is_err(){
@@ -140,10 +164,45 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+    use std::thread::sleep;
+    use tokio::timer::Timeout;
+    use std::ops::Add;
+    //use std::ops::Sub;
+
+    #[test]
+    fn call(){
+        
+       let deadline = Instant::now().add(Duration::from_millis(1010));
+        
+        
+        let mut client = Client::new("http://10.80.67.33:21000/v4/command/app_code".to_owned());
+        client.set_timeout(Duration::from_millis(1000));
+        
+        let request = client.build_request("supports", &[]);
+        let response = client.send_request(&request);
+        
+        //let response = Timeout::new_at(response, deadline);
+        
+        let fut = response.and_then(|res|{
+            println!("response:{:?}", res);
+            Ok(())
+        }).map_err(|e|{
+            println!("e:{:?}", e);
+        });
+        
+        let server_dt1 = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        let now2 = Instant::now();
+        println!("1 Duration::now():{:?}", server_dt1);
+        hyper::rt::run(fut);
+        
+        let server_dt2 = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        println!("2 Duration::now():{:?}, {:?}, {:?}", server_dt2 - server_dt1, now2.elapsed().as_secs(), now2.elapsed().subsec_millis());
+    }
 
     #[test]
     fn sanity() {
-        let client = Client::new("localhost".to_owned(), None, None);
+        let client = Client::new("localhost".to_owned());
         assert_eq!(client.last_nonce(), 0);
         let req1 = client.build_request("test", &[]);
         assert_eq!(client.last_nonce(), 1);

@@ -21,7 +21,6 @@ use std::{error, fmt};
 
 use hyper;
 use serde_json;
-
 use Response;
 
 /// A library error
@@ -33,6 +32,8 @@ pub enum Error {
     Hyper(hyper::error::Error),
     /// Error response
     Rpc(RpcError),
+    ///tokio::timer::timeout::Error
+    Timeout,
     /// Response has neither error nor result
     NoErrorOrResult,
     /// Response to a request did not have the expected nonce
@@ -79,6 +80,7 @@ impl error::Error for Error {
             Error::NoErrorOrResult => "Malformed RPC response",
             Error::NonceMismatch => "Nonce of response did not match nonce of request",
             Error::VersionMismatch => "`jsonrpc` field set to non-\"2.0\"",
+            Error::Timeout => "RPC timeout",
         }
     }
 

@@ -28,7 +28,7 @@
 #![deny(unused_mut)]
 #![warn(missing_docs)]
 
-#![feature(futures_api)] 
+//#![feature(futures_api)] 
 
 extern crate futures;
 extern crate hyper;

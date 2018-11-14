@@ -1,6 +1,6 @@
 [package]
 name = "jsonrpc"
-version = "0.11.3"
+version = "0.11.5"
 authors = ["Andrew Poelstra <apoelstra@wpsoftware.net>", "try trywen@qq.com"]
 license = "CC0-1.0"
 homepage = "https://github.com/tryor/rust-jsonrpc/"
@@ -21,4 +21,5 @@ serde_derive = "1.0.80"
 serde = "1.0.80"
 hyper = "0.12.13"
 tokio = "0.1.11"
+lazy_static = "^0.2.8"
 

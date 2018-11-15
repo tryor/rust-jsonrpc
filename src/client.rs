@@ -87,8 +87,8 @@ impl Client {
 
         Client {
             url: url,
-            //client: HyperClient::new(),
-            client: get_hyper_client(),
+            client: HyperClient::new(),
+            //client: get_hyper_client(),
             //nonce: Arc::new(Mutex::new(0)),
             timeout: None,
             ignore_nonce_mismatch: false,

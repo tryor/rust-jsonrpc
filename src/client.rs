@@ -32,21 +32,31 @@ use tokio::timer::Timeout;
 
 use std::sync::RwLock;
 
+//lazy_static! {
+//    static ref _HyperClient: RwLock<HyperClient<HttpConnector, Body>> = RwLock::new({HyperClient::new()});
+//}
+//
+//fn get_hyper_client() -> HyperClient<HttpConnector, Body>{
+//    match _HyperClient.read(){
+//        Ok(cli) => {
+//            (*cli).clone()
+//        },
+//        _ => HyperClient::new(),
+//    }
+//}
+
 lazy_static! {
-    static ref _HyperClient: RwLock<HyperClient<HttpConnector, Body>> = RwLock::new({HyperClient::new()});
+    static ref  _HyperClient:HyperClient<HttpConnector, Body> = HyperClient::new();
 }
 
-fn get_hyper_client() -> HyperClient<HttpConnector, Body>{
-    match _HyperClient.read(){
-        Ok(cli) => {
-            (*cli).clone()
-        },
-        _ => HyperClient::new(),
-    }
+pub fn get_hyper_client() -> HyperClient<HttpConnector, Body>{
+    _HyperClient.clone()
 }
 
+pub const VERSION:&str = "0.11.6";
 
 /// A handle to a remote JSONRPC server
+#[derive(Clone, Debug)]
 pub struct Client {
     url: String,
 //    user: Option<String>,
@@ -71,6 +81,7 @@ impl Client {
             timeout: None,
         }
     }
+    
     
     ///set timeout
     pub fn set_timeout(&mut self, timeout : Duration) -> &Self{

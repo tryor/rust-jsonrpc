@@ -31,6 +31,10 @@ use std::ops::Add;
 use tokio::timer::Timeout;
 
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+
+pub const VERSION:&str = "0.11.7";
 
 //lazy_static! {
 //    static ref _HyperClient: RwLock<HyperClient<HttpConnector, Body>> = RwLock::new({HyperClient::new()});
@@ -53,7 +57,14 @@ pub fn get_hyper_client() -> HyperClient<HttpConnector, Body>{
     _HyperClient.clone()
 }
 
-pub const VERSION:&str = "0.11.6";
+
+lazy_static! {
+    static ref _msg_id:Arc<AtomicUsize> = Arc::new(AtomicUsize::new(1));
+}
+
+fn get_msg_id() -> usize{
+    return _msg_id.fetch_add(1, Ordering::SeqCst);
+}
 
 /// A handle to a remote JSONRPC server
 #[derive(Clone, Debug)]
@@ -62,7 +73,7 @@ pub struct Client {
 //    user: Option<String>,
 //    pass: Option<String>,
     client: HyperClient<HttpConnector, Body>,
-    nonce: Arc<Mutex<u64>>,
+    //nonce: Arc<Mutex<u64>>,
     timeout: Option<Duration>,
 }
 
@@ -77,7 +88,7 @@ impl Client {
             url: url,
             //client: HyperClient::new(),
             client: get_hyper_client(),
-            nonce: Arc::new(Mutex::new(0)),
+            //nonce: Arc::new(Mutex::new(0)),
             timeout: None,
         }
     }
@@ -174,20 +185,21 @@ impl Client {
         name: &'a str,
         params: &'b [serde_json::Value],
     ) -> Request<'a, 'b> {
-        let mut nonce = self.nonce.lock().unwrap();
-        *nonce += 1;
+        //let mut nonce = self.nonce.lock().unwrap();
+        //*nonce += 1;
         Request {
             method: name,
             params: params,
-            id: From::from(*nonce),
+            //id: From::from(*nonce),
+            id: From::from(get_msg_id()),
             jsonrpc: Some("2.0"),
         }
     }
 
-    /// Accessor for the last-used nonce
-    pub fn last_nonce(&self) -> u64 {
-        *self.nonce.lock().unwrap()
-    }
+    // / Accessor for the last-used nonce
+//    pub fn last_nonce(&self) -> u64 {
+//        *self.nonce.lock().unwrap()
+//    }
 }
 
 #[cfg(test)]

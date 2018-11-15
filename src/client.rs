@@ -75,6 +75,7 @@ pub struct Client {
     client: HyperClient<HttpConnector, Body>,
     //nonce: Arc<Mutex<u64>>,
     timeout: Option<Duration>,
+    ignore_nonce_mismatch: bool,
 }
 
 
@@ -90,9 +91,14 @@ impl Client {
             client: get_hyper_client(),
             //nonce: Arc::new(Mutex::new(0)),
             timeout: None,
+            ignore_nonce_mismatch: false,
         }
     }
     
+    ///Ignore NonceMismatch
+    pub fn set_ignore_nonce_mismatch(&mut self, b:bool){
+        self.ignore_nonce_mismatch = b;
+    }
     
     ///set timeout
     pub fn set_timeout(&mut self, timeout : Duration) -> &Self{
@@ -153,6 +159,7 @@ impl Client {
         
         let msg_id = request.id.clone();
         let resp_fut = self.client.request(hyper_request);
+        let ignore_nonce_mismatch = self.ignore_nonce_mismatch;
         
         Box::new(resp_fut.and_then(|res| {
             res.into_body().concat2()
@@ -164,8 +171,7 @@ impl Client {
                             if response.jsonrpc != None && response.jsonrpc != Some(From::from("2.0")) {
                                 return Err(Error::VersionMismatch);
                             }
-                            println!("response.id != msg_id: {}, {}", response.id, msg_id);
-                            if response.id != msg_id {
+                            if response.id != msg_id &&  !ignore_nonce_mismatch{
                                 return Err(Error::NonceMismatch);
                             }
                             return Ok(response)

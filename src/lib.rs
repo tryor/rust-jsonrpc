@@ -35,7 +35,7 @@ extern crate hyper;
 extern crate tokio;
 #[macro_use] extern crate lazy_static;
 extern crate serde;
-extern crate serde_json;
+#[macro_use] extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 
 

@@ -53,7 +53,7 @@ lazy_static! {
     static ref  _HyperClient:HyperClient<HttpConnector, Body> = HyperClient::new();
 }
 
-pub fn get_hyper_client() -> HyperClient<HttpConnector, Body>{
+fn get_hyper_client() -> HyperClient<HttpConnector, Body>{
     _HyperClient.clone()
 }
 
@@ -164,6 +164,7 @@ impl Client {
                             if response.jsonrpc != None && response.jsonrpc != Some(From::from("2.0")) {
                                 return Err(Error::VersionMismatch);
                             }
+                            println!("response.id != msg_id: {}, {}", response.id, msg_id);
                             if response.id != msg_id {
                                 return Err(Error::NonceMismatch);
                             }
@@ -213,14 +214,20 @@ mod tests {
 
     #[test]
     fn call(){
+        call2();
+    }
+    #[test]
+    fn call2(){
         
        let deadline = Instant::now().add(Duration::from_millis(1010));
         
         
-        let mut client = Client::new("http://10.80.67.33:21000/v4/command/app_code".to_owned());
+        let mut client = Client::new("http://app-backend-process-service.test.shouqianba.com/rpc/account".to_owned());
         client.set_timeout(Duration::from_millis(1000));
         
-        let request = client.build_request("supports", &[]);
+        let params = vec![json!("94ca4d57-a610-49d1-b93c-a30e725ea40b".to_owned())];
+        
+        let request = client.build_request("getAccount", &params); 
         let response = client.send_request(&request);
         
         //let response = Timeout::new_at(response, deadline);
@@ -241,14 +248,14 @@ mod tests {
         println!("2 Duration::now():{:?}, {:?}, {:?}", server_dt2 - server_dt1, now2.elapsed().as_secs(), now2.elapsed().subsec_millis());
     }
 
-    #[test]
-    fn sanity() {
-        let client = Client::new("localhost".to_owned());
-        assert_eq!(client.last_nonce(), 0);
-        let req1 = client.build_request("test", &[]);
-        assert_eq!(client.last_nonce(), 1);
-        let req2 = client.build_request("test", &[]);
-        assert_eq!(client.last_nonce(), 2);
-        assert!(req1 != req2);
-    }
+//    #[test]
+//    fn sanity() {
+//        let client = Client::new("localhost".to_owned());
+//        assert_eq!(client.last_nonce(), 0);
+//        let req1 = client.build_request("test", &[]);
+//        assert_eq!(client.last_nonce(), 1);
+//        let req2 = client.build_request("test", &[]);
+//        assert_eq!(client.last_nonce(), 2);
+//        assert!(req1 != req2);
+//    }
 }

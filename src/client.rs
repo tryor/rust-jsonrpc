@@ -17,10 +17,10 @@
 //! Support for connecting to JSONRPC servers over HTTP, sending requests,
 //! and parsing responses
 //!
-
 use std::sync::{Arc, Mutex};
 use hyper::client::{Client as HyperClient, HttpConnector};
-use hyper::{self, Body, Method};
+use hyper::{self, Body, Method, HeaderMap};
+use hyper::header::{self, HeaderValue};
 use futures::{future, Future, Stream};
 use serde_json;
 use serde;
@@ -142,24 +142,26 @@ impl Client {
             return Box::new(future::err(Error::Json(request_raw.err().unwrap())));
         }
         let request_raw = request_raw.unwrap();
+        let request_raw_clone = request_raw.clone();
 
         // Setup connection
-//        let mut headers = HeaderMap::new();
-//        if let Some(ref user) = self.user {
-//            headers.insert(AUTHORIZATION, user.clone().parse().unwrap());
-//        }
+        let mut headers = HeaderMap::new();
+        //headers.insert(AUTHORIZATION, user.clone().parse().unwrap());
+        headers.insert("Connection", HeaderValue::from_static("close")); 
 
         // Send request
-        let hyper_request = hyper::Request::builder()
+        let mut hyper_request = hyper::Request::builder()
             .method(Method::POST)
             .uri(self.url.clone())
             .body(Body::from(request_raw))
             .unwrap();
-            //*hyper_request.headers_mut() = headers;
+            *hyper_request.headers_mut() = headers;
         
         let msg_id = request.id.clone();
         let resp_fut = self.client.request(hyper_request);
         let ignore_nonce_mismatch = self.ignore_nonce_mismatch;
+        
+        //println!("request_raw_clone:{:?}", String::from_utf8(request_raw_clone));
         
         Box::new(resp_fut.and_then(|res| {
             res.into_body().concat2()
@@ -177,7 +179,7 @@ impl Client {
                             return Ok(response)
                         },
                         Err(e) => {
-                            println!("{}, body:{:?}, err:{:?}", b.len(), b, e);
+                            println!("{}, body:{:?}, err:{:?}, request_raw:{:?}", b.len(), b, e, String::from_utf8(request_raw_clone));
                             return Err(Error::Json(e))
                         },
                     }

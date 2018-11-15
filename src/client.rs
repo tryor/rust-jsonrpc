@@ -164,9 +164,9 @@ impl Client {
         Box::new(resp_fut.and_then(|res| {
             res.into_body().concat2()
         }).then(move |body|{
-                println!("body:{:?}", body);
             match body{
                 Ok(b) =>{
+                    println!("{}, body:{:?}", b.len(), b);
                     match serde_json::from_slice::<Response>(&b){
                         Ok(response) => {
                             if response.jsonrpc != None && response.jsonrpc != Some(From::from("2.0")) {

@@ -166,7 +166,6 @@ impl Client {
         }).then(move |body|{
             match body{
                 Ok(b) =>{
-                    println!("{}, body:{:?}", b.len(), b);
                     match serde_json::from_slice::<Response>(&b){
                         Ok(response) => {
                             if response.jsonrpc != None && response.jsonrpc != Some(From::from("2.0")) {
@@ -178,6 +177,7 @@ impl Client {
                             return Ok(response)
                         },
                         Err(e) => {
+                            println!("{}, body:{:?}, err:{:?}", b.len(), b, e);
                             return Err(Error::Json(e))
                         },
                     }

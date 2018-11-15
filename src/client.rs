@@ -144,7 +144,7 @@ impl Client {
             return Box::new(future::err(Error::Json(request_raw.err().unwrap())));
         }
         let request_raw = request_raw.unwrap();
-        let request_raw_clone = request_raw.clone();
+        //let request_raw_clone = request_raw.clone();
 
         // Send request
         let mut hyper_request = hyper::Request::builder()

@@ -41,6 +41,8 @@ extern crate serde;
 
 pub mod client;
 pub mod error;
+//use hyper::{self, HeaderMap};
+//use hyper::header::{self, HeaderValue};
 
 // Re-export error type
 pub use error::Error;

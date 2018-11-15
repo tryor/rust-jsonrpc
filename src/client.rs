@@ -36,26 +36,26 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub const VERSION:&str = "0.11.14";
 
-lazy_static! {
-    static ref _HyperClient: RwLock<HyperClient<HttpConnector, Body>> = RwLock::new({HyperClient::new()});
-}
-
-fn get_hyper_client() -> HyperClient<HttpConnector, Body>{
-    match _HyperClient.read(){
-        Ok(cli) => {
-            (*cli).clone()
-        },
-        _ => HyperClient::new(),
-    }
-}
-
 //lazy_static! {
-//    static ref  _HyperClient:HyperClient<HttpConnector, Body> = HyperClient::new();
+//    static ref _HyperClient: RwLock<HyperClient<HttpConnector, Body>> = RwLock::new({HyperClient::new()});
 //}
 //
 //fn get_hyper_client() -> HyperClient<HttpConnector, Body>{
-//    _HyperClient.clone()
+//    match _HyperClient.read(){
+//        Ok(cli) => {
+//            (*cli).clone()
+//        },
+//        _ => HyperClient::new(),
+//    }
 //}
+
+lazy_static! {
+    static ref  _HyperClient:HyperClient<HttpConnector, Body> = HyperClient::new();
+}
+
+fn get_hyper_client() -> HyperClient<HttpConnector, Body>{
+    _HyperClient.clone()
+}
 
 
 lazy_static! {
@@ -87,8 +87,8 @@ impl Client {
 
         Client {
             url: url,
-            client: HyperClient::new(),
-            //client: get_hyper_client(),
+            //client: HyperClient::new(),
+            client: get_hyper_client(),
             //nonce: Arc::new(Mutex::new(0)),
             timeout: None,
             ignore_nonce_mismatch: false,
@@ -178,7 +178,7 @@ impl Client {
                             return Ok(response)
                         },
                         Err(e) => {
-                            println!("{}, body:{:?}, err:{:?}, request_raw:{:?}", b.len(), b, e, String::from_utf8(request_raw_clone));
+                            //println!("{}, body:{:?}, err:{:?}, request_raw:{:?}", b.len(), b, e, String::from_utf8(request_raw_clone));
                             return Err(Error::Json(e))
                         },
                     }

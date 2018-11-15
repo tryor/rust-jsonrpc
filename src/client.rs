@@ -34,7 +34,7 @@ use std::sync::RwLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 
-pub const VERSION:&str = "0.11.7";
+pub const VERSION:&str = "0.11.10";
 
 //lazy_static! {
 //    static ref _HyperClient: RwLock<HyperClient<HttpConnector, Body>> = RwLock::new({HyperClient::new()});
@@ -164,6 +164,7 @@ impl Client {
         Box::new(resp_fut.and_then(|res| {
             res.into_body().concat2()
         }).then(move |body|{
+                println!("body:{:?}", body);
             match body{
                 Ok(b) =>{
                     match serde_json::from_slice::<Response>(&b){

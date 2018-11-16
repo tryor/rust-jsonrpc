@@ -95,6 +95,21 @@ impl Client {
         }
     }
     
+    /// Creates a new client
+    pub fn create(url: String, client: HyperClient<HttpConnector, Body>) -> Client {
+        // Check that if we have a password, we have a username; other way around is ok
+        //debug_assert!(pass.is_none() || user.is_some());
+
+        Client {
+            url: url,
+            //client: HyperClient::new(),
+            client: client,
+            //nonce: Arc::new(Mutex::new(0)),
+            timeout: None,
+            ignore_nonce_mismatch: false,
+        }
+    }
+    
     ///Ignore NonceMismatch
     pub fn set_ignore_nonce_mismatch(&mut self, b:bool){
         self.ignore_nonce_mismatch = b;

@@ -19,7 +19,7 @@
 //!
 use std::sync::{Arc, Mutex};
 use hyper::client::{HttpConnector};
-use hyper::{self, Body, Method, HeaderMap, Client as HyperClient, };
+use hyper::{self, Body, Method, HeaderMap, Client as HyperClient};
 use hyper::header::{self, HeaderValue};
 use futures::{future, Future, Stream};
 use serde_json;
@@ -34,7 +34,7 @@ use std::sync::RwLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 
-pub const VERSION:&str = "0.11.14";
+//pub const VERSION:&str = "0.11.20";
 
 //lazy_static! {
 //    static ref _HyperClient: RwLock<HyperClient<HttpConnector, Body>> = RwLock::new({HyperClient::new()});

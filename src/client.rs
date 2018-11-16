@@ -18,8 +18,8 @@
 //! and parsing responses
 //!
 use std::sync::{Arc, Mutex};
-use hyper::client::{Client as HyperClient, HttpConnector};
-use hyper::{self, Body, Method, HeaderMap};
+use hyper::client::{HttpConnector};
+use hyper::{self, Body, Method, HeaderMap, Client as HyperClient, };
 use hyper::header::{self, HeaderValue};
 use futures::{future, Future, Stream};
 use serde_json;
